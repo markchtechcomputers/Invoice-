@@ -1,0 +1,319 @@
+version: "1"
+tests:
+  # API Health Check
+  - id: invoice-api-health
+    name: "Invoice API Health Check"
+    type: api
+    config:
+      request:
+        url: "https://your-app.vercel.app/api/health"
+        method: GET
+        timeout: 30000
+      assertions:
+        - type: statusCode
+          operator: is
+          target: 200
+        - type: responseTime
+          operator: lessThan
+          target: 1000
+        - type: body
+          operator: validatesJSONPath
+          target: "$.status"
+          value: "healthy"
+    locations:
+      - aws:us-east-1
+      - aws:eu-west-1
+      - aws:ap-southeast-1
+    options:
+      tick_every: 60
+      min_failure_duration: 0
+      min_location_failed: 1
+      retry:
+        count: 2
+        interval: 300
+
+  # Main Page Load Test
+  - id: invoice-main-page
+    name: "Invoice Scanner Main Page"
+    type: browser
+    config:
+      request:
+        url: "https://your-app.vercel.app"
+        method: GET
+      assertions:
+        - type: statusCode
+          operator: is
+          target: 200
+        - type: text
+          operator: contains
+          target: "Invoice Scanner Pro"
+    locations:
+      - aws:us-east-1
+      - aws:eu-west-1
+    options:
+      tick_every: 300
+      device_ids:
+        - tablet
+        - mobile_small
+        - chrome.laptop_large
+      retry:
+        count: 1
+        interval: 300
+
+  # Scanner Function Test
+  - id: invoice-scanner-function
+    name: "Invoice Scanner Function"
+    type: api
+    config:
+      request:
+        url: "https://your-app.vercel.app/api/scan"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: '{"action": "test", "file": "sample.pdf"}'
+      assertions:
+        - type: statusCode
+          operator: is
+          target: 200
+    locations:
+      - aws:us-east-1
+    options:
+      tick_every: 3600
+      retry:
+        count: 2
+        interval: 300
+
+  # Search Function Test
+  - id: invoice-search-function
+    name: "Invoice Search Function"
+    type: api
+    config:
+      request:
+        url: "https://your-app.vercel.app/api/search"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: '{"query": "INV-2024"}'
+      assertions:
+        - type: statusCode
+          operator: is
+          target: 200
+        - type: responseTime
+          operator: lessThan
+          target: 2000
+    locations:
+      - aws:us-east-1
+      - aws:eu-west-1
+    options:
+      tick_every: 900
+      min_failure_duration: 120
+      retry:
+        count: 1
+        interval: 300
+
+  # PDF Upload Test
+  - id: pdf-upload-test
+    name: "PDF Upload Functionality"
+    type: browser
+    config:
+      request:
+        url: "https://your-app.vercel.app"
+        method: GET
+      steps:
+        - type: assertElementPresent
+          target: "button"
+          params:
+            value: "Upload PDF"
+        - type: click
+          target: "button"
+          params:
+            value: "Upload Files"
+        - type: wait
+          params:
+            value: 2000
+    locations:
+      - aws:us-east-1
+    options:
+      tick_every: 1800
+      device_ids:
+        - chrome.laptop_large
+      retry:
+        count: 1
+        interval: 300
+
+  # Database Connection Test
+  - id: db-connection-test
+    name: "Database Connection Health"
+    type: api
+    config:
+      request:
+        url: "https://your-app.vercel.app/api/db-health"
+        method: GET
+        timeout: 10000
+      assertions:
+        - type: statusCode
+          operator: is
+          target: 200
+        - type: body
+          operator: validatesJSONPath
+          target: "$.connected"
+          value: true
+    locations:
+      - aws:us-east-1
+    options:
+      tick_every: 120
+      min_failure_duration: 300
+      retry:
+        count: 3
+        interval: 60
+
+  # Performance Test
+  - id: performance-metrics
+    name: "Application Performance Metrics"
+    type: api
+    config:
+      request:
+        url: "https://your-app.vercel.app"
+        method: GET
+      assertions:
+        - type: responseTime
+          operator: lessThan
+          target: 3000
+    locations:
+      - aws:us-east-1
+      - aws:eu-west-1
+      - aws:ap-southeast-1
+      - aws:sa-east-1
+    options:
+      tick_every: 300
+      monitor_name: "app_performance"
+      monitor_priority: 2
+
+  # SSL Certificate Check
+  - id: ssl-cert-check
+    name: "SSL Certificate Validation"
+    type: api
+    config:
+      request:
+        url: "https://your-app.vercel.app"
+        method: GET
+        timeout: 15000
+      assertions:
+        - type: ssl
+          operator: isValidCertificate
+    locations:
+      - aws:us-east-1
+    options:
+      tick_every: 3600
+      min_failure_duration: 0
+
+  # Uptime Monitor
+  - id: uptime-monitor
+    name: "Application Uptime Monitor"
+    type: api
+    config:
+      request:
+        url: "https://your-app.vercel.app"
+        method: GET
+      assertions:
+        - type: statusCode
+          operator: is
+          target: 200
+    locations:
+      - aws:us-east-1
+      - aws:eu-west-1
+      - aws:ap-southeast-1
+      - aws:ap-northeast-1
+      - aws:sa-east-1
+    options:
+      tick_every: 60
+      min_failure_duration: 180
+      min_location_failed: 2
+
+monitors:
+  - id: error-rate-monitor
+    name: "High Error Rate Detected"
+    type: metric alert
+    query: "avg(last_5m):avg:datadog.estimated_usage.synthetics.errors{*} > 5"
+    message: |
+      High error rate detected in Invoice Scanner application.
+      Please investigate immediately.
+    tags:
+      - "service:invoice-scanner"
+      - "team:engineering"
+      - "priority:high"
+    options:
+      threshold: 5
+      timeframe: last_5m
+      notify_no_data: false
+      notify_audit: true
+      require_full_window: false
+
+  - id: response-time-monitor
+    name: "High Response Time Alert"
+    type: metric alert
+    query: "avg(last_10m):avg:datadog.estimated_usage.synthetics.browser.duration{*} > 5000"
+    message: |
+      High response time detected (>5s).
+      Check application performance.
+    tags:
+      - "service:invoice-scanner"
+      - "team:engineering"
+    options:
+      threshold: 5000
+      timeframe: last_10m
+      notify_no_data: false
+
+dashboards:
+  - name: "Invoice Scanner Monitoring"
+    layout_type: "ordered"
+    widgets:
+      - definition:
+          type: "timeseries"
+          title: "API Response Times"
+          requests:
+            - q: "avg:datadog.estimated_usage.synthetics.api.duration{test_id:invoice-api-health} by {location}"
+              display_type: "line"
+          markers:
+            - label: "Threshold"
+              value: "y = 1000"
+              display_type: "error dashed"
+        layout:
+          x: 0
+          y: 0
+          width: 8
+          height: 4
+
+      - definition:
+          type: "query_value"
+          title: "Uptime % (Last 24h)"
+          requests:
+            - q: "100 - (avg:datadog.estimated_usage.synthetics.errors{test_id:uptime-monitor}.as_count() / avg:datadog.estimated_usage.synthetics.runs{test_id:uptime-monitor}.as_count() * 100)"
+              aggregator: "avg"
+          autoscale: true
+        layout:
+          x: 8
+          y: 0
+          width: 4
+          height: 4
+
+      - definition:
+          type: "toplist"
+          title: "Top Locations by Errors"
+          requests:
+            - q: "top(avg:datadog.estimated_usage.synthetics.errors{*} by {location}, 5, 'mean', 'desc')"
+        layout:
+          x: 0
+          y: 4
+          width: 6
+          height: 4
+
+      - definition:
+          type: "alert_graph"
+          title: "Active Alerts"
+          alert_id: "error-rate-monitor"
+        layout:
+          x: 6
+          y: 4
+          width: 6
+          height: 4
