@@ -1,0 +1,34 @@
+{
+  "apiKey": "${DATADOG_API_KEY}",
+  "appKey": "${DATADOG_APP_KEY}",
+  "datadogSite": "datadoghq.com",
+  "failOnTimeout": false,
+  "failOnCriticalErrors": true,
+  "global": {
+    "tags": [
+      "env:production",
+      "service:invoice-scanner",
+      "team:finance",
+      "version:1.0.0"
+    ]
+  },
+  "files": [
+    "synthetics.yml"
+  ],
+  "monitors": {
+    "notify": {
+      "slack": "finance-alerts",
+      "email": "finance-team@company.com",
+      "pagerduty": "invoice-scanner-pd"
+    },
+    "thresholds": {
+      "warning": 1,
+      "critical": 3
+    }
+  },
+  "proxy": {
+    "protocol": "https",
+    "host": "proxy.company.com",
+    "port": 8080
+  }
+}
